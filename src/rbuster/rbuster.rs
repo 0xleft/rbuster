@@ -1,3 +1,5 @@
+use std::ops::Deref;
+use std::time::Duration;
 use std::{fs, sync::atomic::AtomicUsize};
 use reqwest::Client;
 use tokio;
@@ -8,15 +10,15 @@ pub struct Rbuster {
     url: String,
     verbose: bool,
     wordlist: String,
-    // max request per second
     threads: usize,
     recursive: bool,
     depth: usize,
     endings: Vec<String>,
+    timeout: u64,
 }
 
 impl Rbuster {
-    pub fn new(url: String, verbose: bool, wordlist: String, threads: usize, recursive: bool, depth: usize, endings: Vec<String>) -> Self {
+    pub fn new(url: String, verbose: bool, wordlist: String, threads: usize, recursive: bool, depth: usize, endings: Vec<String>, timeout: u64) -> Self {
 
         // check if wordlist exists
         if !fs::metadata(wordlist.clone()).is_ok() {
@@ -31,64 +33,36 @@ impl Rbuster {
             recursive,
             depth,
             endings,
+            timeout,
         }
     }
 
     pub async fn run(&self) {
-        // starting the bruteforce
-        let word_deque: Arc<Mutex<VecDeque<String>>> = Arc::new(Mutex::new(VecDeque::new()));
-
         // load wordlist
-        let wordlist = fs::read_to_string(self.wordlist.clone()).unwrap();
-        let mut wordlist: Vec<&str> = wordlist.split("\n").collect();
-        wordlist.reverse();
+        let file_content = fs::read_to_string(self.wordlist.clone()).unwrap();
+        // readable code 101
+        // basicaly Vec<&str> -> Vec<String>
+        let mut wordlist = file_content.split_whitespace().collect::<Vec<_>>().iter().map(|word| word.to_string()).collect::<Vec<_>>();
 
-        // load wordlist into shared deque
-        for word in wordlist.clone() {
-            word_deque.lock().unwrap().push_back(word.to_string());
-        }
+        let client = Client::builder()
+            .timeout(Duration::from_secs(self.timeout))
+            .build()
+            .unwrap();
 
-        println!("{} words loaded", word_deque.lock().unwrap().len());
-        
-        // create a client
-        let client = Client::new();
-
-        // create a counter
-        let counter = Arc::new(AtomicUsize::new(0));
-
-        // start
-        for _ in 0..self.threads {
-            let client = client.clone();
-            let counter = counter.clone();
-            let word_deque = word_deque.clone();
-            let url = self.url.clone();
-            let verbose = self.verbose.clone();
-            let recursive = self.recursive.clone();
-            let depth = self.depth.clone();
-            let endings = self.endings.clone();
-
-            tokio::spawn(async move {
-                loop {
-                    let word = word_deque.lock().unwrap().pop_front();
-                    if word.is_none() {
-                        break;
-                    }
-
-                    let word = word.unwrap();
-
-                    let mut url = url.clone();
-                    url.push_str(&word);
-
-                    let res = client.get(&url).send().await;
-                    if res.is_ok() {
-                        let res = res.unwrap();
-
-                        if res.status().is_success() {
-                            println!("{} - {}", res.status(), url);
+        for word in wordlist {
+            let res = client.get(format!("{}/{}.php", self.url, word)).send().await;
+            match res {
+                Ok(res) => {
+                    let status = res.status();
+                    if status.is_success() {
+                        let body = res.text().await.unwrap();
+                        if !body.contains("404") && !body.to_lowercase().contains("not found") {
+                            println!("{} -> {}", status, word);
                         }
                     }
-                }
-            });
+                },
+                Err(_) => {}
+            }
         }
     }
 }
