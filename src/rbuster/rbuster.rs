@@ -4,17 +4,14 @@ use reqwest::Client;
 
 pub struct Rbuster {
     url: String,
-    verbose: bool,
     wordlist: String,
     threads: usize,
-    recursive: bool,
-    depth: usize,
     endings: String,
     timeout: u64,
 }
 
 impl Rbuster {
-    pub fn new(url: String, verbose: bool, wordlist: String, threads: usize, recursive: bool, depth: usize, endings: String, timeout: u64) -> Self {
+    pub fn new(url: String, wordlist: String, threads: usize, endings: String, timeout: u64) -> Self {
 
         // check if wordlist exists
         if !fs::metadata(wordlist.clone()).is_ok() {
@@ -23,11 +20,8 @@ impl Rbuster {
 
         Self {
             url,
-            verbose,
             wordlist,
             threads,
-            recursive,
-            depth,
             endings,
             timeout,
         }
@@ -44,7 +38,7 @@ impl Rbuster {
         let endings = self.endings.split(",").collect::<Vec<_>>();
         // make sure they all are unique
         let endings = endings.iter().map(|ending| ending.to_string()).collect::<std::collections::HashSet<_>>();
-
+    
         for word in wordlist {
             for ending in endings.clone()  {
                 
@@ -55,12 +49,14 @@ impl Rbuster {
 
                 let url = format!("{}/{}{}", self.url, word, ending);
                 let timeout = Duration::from_secs(self.timeout).clone();
+
                 let task = tokio::spawn(async move {
                     let client = Client::new();
                     let res = client.get(url).timeout(timeout).send().await;
                     match res {
                         Ok(res) => {
                             if res.status().is_success() {
+                                // found something
                                 println!("{} - {}", res.status(), res.url());
                             }
                         },
