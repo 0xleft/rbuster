@@ -16,13 +16,16 @@ struct Args {
     wordlist: String,
 
     #[arg(short, long, default_value = "10")]
-    threads: usize,
+    rps: usize,
 
-    #[arg(short, long)]
+    #[arg(long)]
     recursive: bool,
 
     #[arg(short, long, default_value = "3")]
     depth: usize,
+
+    #[arg(short, long)]
+    endings: Vec<String>,
 }
 
 const BANNER: &str = r#"
@@ -40,6 +43,6 @@ fn main() {
         println!("Arguments: {:#?}", args);
     }
 
-    let rbuster = Rbuster::new(args.url, args.verbose, args.wordlist, args.threads, args.recursive, args.depth);
-    rbuster.run();
+    let rbuster = Rbuster::new(args.url, args.verbose, args.wordlist, args.rps, args.recursive, args.depth, args.endings);
+    tokio::runtime::Runtime::new().unwrap().block_on(rbuster.run());
 }
