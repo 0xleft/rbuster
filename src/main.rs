@@ -16,7 +16,7 @@ struct Args {
     wordlist: String,
 
     #[arg(short, long, default_value = "10")]
-    rps: usize,
+    threads: usize,
 
     #[arg(long)]
     recursive: bool,
@@ -27,7 +27,7 @@ struct Args {
     #[arg(short, long)]
     endings: String,
 
-    #[arg(short, long, default_value = "10")]
+    #[arg(long, default_value = "10")]
     timeout: u64,
 }
 
@@ -47,6 +47,6 @@ async fn main() {
         println!("Arguments: {:#?}", args);
     }
 
-    let rbuster = Rbuster::new(args.url, args.verbose, args.wordlist, args.rps, args.recursive, args.depth, args.endings, args.timeout);
+    let rbuster = Rbuster::new(args.url, args.verbose, args.wordlist, args.threads, args.recursive, args.depth, args.endings, args.timeout);
     let _ = rbuster.run().await;
 }
