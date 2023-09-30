@@ -1,7 +1,7 @@
 pub mod rbuster;
 
 use clap::Parser;
-use crate::rbuster::{Rbuster};
+use crate::rbuster::Rbuster;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -25,9 +25,9 @@ struct Args {
     depth: usize,
 
     #[arg(short, long)]
-    endings: Vec<String>,
+    endings: String,
 
-    #[arg(short, long, default_value = "5")]
+    #[arg(short, long, default_value = "10")]
     timeout: u64,
 }
 
@@ -38,7 +38,8 @@ By: @0xleft
 A simple rust based directory bruteforcer
 "#;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = Args::parse();
     println!("{}", BANNER);
 
@@ -47,5 +48,5 @@ fn main() {
     }
 
     let rbuster = Rbuster::new(args.url, args.verbose, args.wordlist, args.rps, args.recursive, args.depth, args.endings, args.timeout);
-    tokio::runtime::Runtime::new().unwrap().block_on(rbuster.run());
+    let _ = rbuster.run().await;
 }
