@@ -29,6 +29,9 @@ struct Args {
 
     #[arg(long, default_value = "10")]
     timeout: u64,
+
+    #[arg(long, default_value = "404")]
+    not_found_string: String,
 }
 
 const BANNER: &str = r#"
@@ -47,6 +50,6 @@ async fn main() {
         println!("Arguments: {:#?}", args);
     }
 
-    let rbuster = Rbuster::new(args.url, args.wordlist, args.threads, args.endings, args.timeout);
+    let rbuster = Rbuster::new(args.url, args.wordlist, args.threads, args.endings, args.timeout, args.not_found_string);
     let _ = rbuster.run().await;
 }

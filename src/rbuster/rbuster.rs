@@ -8,12 +8,12 @@ pub struct Rbuster {
     threads: usize,
     endings: String,
     timeout: u64,
+    not_found_string: String,
 }
 
 impl Rbuster {
-    pub fn new(url: String, wordlist: String, threads: usize, endings: String, timeout: u64) -> Self {
+    pub fn new(url: String, wordlist: String, threads: usize, endings: String, timeout: u64, not_found_string: String) -> Self {
 
-        // check if wordlist exists
         if !fs::metadata(wordlist.clone()).is_ok() {
             panic!("Wordlist not found!");
         }
@@ -24,6 +24,7 @@ impl Rbuster {
             threads,
             endings,
             timeout,
+            not_found_string,
         }
     }
 
@@ -49,15 +50,17 @@ impl Rbuster {
 
                 let url = format!("{}/{}{}", self.url, word, ending);
                 let timeout = Duration::from_secs(self.timeout).clone();
+                let not_found_string = self.not_found_string.clone();
 
                 let task = tokio::spawn(async move {
                     let client = Client::new();
                     let res = client.get(url).timeout(timeout).send().await;
                     match res {
                         Ok(res) => {
-                            if res.status().is_success() {
-                                // found something
-                                println!("{} - {}", res.status(), res.url());
+                            let url = res.url().clone();
+                            let status = res.status().as_u16();
+                            if res.status().is_success() && !res.text().await.unwrap().contains(&not_found_string) {
+                                println!("{} - {}", status, url);
                             }
                         },
                         Err(err) => {
